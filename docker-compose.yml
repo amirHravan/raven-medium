@@ -3,6 +3,40 @@ version: "3"
 services:
     medium:
         build: ./medium/
-        command: python manage.py runserver 0.0.0.0:8000
+        command: uwsgi --http :8000 --wsgi-file ./medium/wsgi.py --processes 4 --enable-threads --stats /tmp/stats.sock
         ports:
             - "8000:8000"
+        environment:
+            - PROMETHEUS_MULTIPROC_DIR=/tmp
+        networks:
+            - default
+
+    prometheus:
+        image: docker.arvancloud.ir/prom/prometheus
+        volumes:
+            - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+        ports:
+            - "9090:9090"
+        depends_on:
+            - medium
+        networks:
+            - default
+
+    grafana:
+        image:  docker.arvancloud.ir/grafana/grafana
+        ports:
+            - "3000:3000"
+        depends_on:
+            - prometheus
+        volumes:
+            - grafana-storage:/var/lib/grafana
+        networks:
+            - default
+
+volumes:
+    grafana-storage:
+
+networks:
+    default:
